@@ -29,6 +29,8 @@ const Profile = () => {
     endDate: '',
     description: ''
   });
+  const [resumeForm, setResumeForm] = useState({ name: '', file: null });
+  const [resumeUploading, setResumeUploading] = useState(false);
   
   // Fetch user profile data on component mount
   useEffect(() => {
@@ -168,6 +170,55 @@ const Profile = () => {
     } catch (error) {
       console.error('Error adding project:', error);
       alert('Failed to add project');
+    }
+  };
+
+  const handleFileChange = (e) => {
+    setResumeForm({...resumeForm, file: e.target.files[0]});
+  };
+
+  const handleResumeSubmit = async (e) => {
+    e.preventDefault();
+    if (!resumeForm.file || !resumeForm.name) return;
+    
+    try {
+      setResumeUploading(true);
+      
+      const formData = new FormData();
+      formData.append('file', resumeForm.file);
+      formData.append('resumeName', resumeForm.name);
+      
+      await api.user.uploadResume(formData);
+      
+      // Reset form
+      setResumeForm({ name: '', file: null });
+      
+      // Refresh profile to get updated resumes
+      await api.user.getProfile(true);
+      
+      alert('Resume uploaded successfully');
+    } catch (error) {
+      console.error('Error uploading resume:', error);
+      alert('Failed to upload resume');
+    } finally {
+      setResumeUploading(false);
+    }
+  };
+
+  const handleDeleteResume = async (resumeId) => {
+    if (!confirm('Are you sure you want to delete this resume?')) return;
+    
+    try {
+      await api.user.deleteResume(resumeId);
+      
+      // Update local state
+      setProfile(prev => ({
+        ...prev,
+        resumes: prev.resumes.filter(resume => resume.id !== resumeId)
+      }));
+    } catch (error) {
+      console.error('Error deleting resume:', error);
+      alert('Failed to delete resume');
     }
   };
 
@@ -501,61 +552,56 @@ const Profile = () => {
               <h4 className="font-medium mb-2">Current Resumes</h4>
               
               <div className="border border-gray-200 rounded-md overflow-hidden">
-                <div className="flex items-center justify-between p-3 border-b">
-                  <div className="flex items-center">
-                    <svg className="w-6 h-6 text-gray-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                    </svg>
-                    <span>Resume_Technical.pdf</span>
+                {profile.resumes.map(resume => (
+                  <div key={resume.id} className="flex items-center justify-between p-3 border-b">
+                    <div className="flex items-center">
+                      <svg className="w-6 h-6 text-gray-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                      </svg>
+                      <span>{resume.name}</span>
+                    </div>
+                    <div>
+                      <button className="text-indigo-600 hover:text-indigo-800 mr-3">View</button>
+                      <button className="text-red-600 hover:text-red-800" onClick={() => handleDeleteResume(resume.id)}>Remove</button>
+                    </div>
                   </div>
-                  <div>
-                    <button className="text-indigo-600 hover:text-indigo-800 mr-3">View</button>
-                    <button className="text-red-600 hover:text-red-800">Remove</button>
-                  </div>
-                </div>
-                
-                <div className="flex items-center justify-between p-3">
-                  <div className="flex items-center">
-                    <svg className="w-6 h-6 text-gray-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                    </svg>
-                    <span>Resume_Research.pdf</span>
-                  </div>
-                  <div>
-                    <button className="text-indigo-600 hover:text-indigo-800 mr-3">View</button>
-                    <button className="text-red-600 hover:text-red-800">Remove</button>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
             
             <div>
               <h4 className="font-medium mb-3">Upload New Resume</h4>
-              <div className="border-2 border-dashed border-gray-300 rounded-md p-6 text-center">
-                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-                </svg>
-                <p className="mt-1 text-sm text-gray-600">
-                  Drag and drop your resume, or <span className="text-indigo-600 font-medium">browse</span>
-                </p>
-                <p className="mt-1 text-xs text-gray-500">PDF, DOCX up to 5MB</p>
-                <input type="file" className="hidden" />
-              </div>
-              
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Resume Name</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g., Technical Resume"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                />
-              </div>
-              
-              <button 
-                className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
-              >
-                Upload Resume
-              </button>
+              <form onSubmit={handleResumeSubmit}>
+                <div className="border-2 border-dashed border-gray-300 rounded-md p-6 text-center">
+                  <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                  </svg>
+                  <p className="mt-1 text-sm text-gray-600">
+                    Drag and drop your resume, or <span className="text-indigo-600 font-medium">browse</span>
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">PDF, DOCX up to 5MB</p>
+                  <input type="file" className="hidden" onChange={handleFileChange} />
+                </div>
+                
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Resume Name</label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g., Technical Resume"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    value={resumeForm.name}
+                    onChange={(e) => setResumeForm({ ...resumeForm, name: e.target.value })}
+                  />
+                </div>
+                
+                <button 
+                  type="submit"
+                  className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+                  disabled={resumeUploading}
+                >
+                  {resumeUploading ? 'Uploading...' : 'Upload Resume'}
+                </button>
+              </form>
             </div>
           </div>
         )}

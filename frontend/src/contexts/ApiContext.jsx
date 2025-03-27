@@ -110,7 +110,7 @@ export const ApiProvider = ({ children }) => {
   const endpoints = {
     auth: {
       login: (token) => api.post('/api/users/auth/validate', { token }),
-      getProfile: () => api.get('/api/users/profile'),
+      getCurrentUser: () => api.get('/api/auth/me'),
     },
     user: {
       // Use cached profile data with the option to force refresh
@@ -118,7 +118,7 @@ export const ApiProvider = ({ children }) => {
       updateProfile: async (userData) => {
         const result = await api.put('/api/users/profile', userData);
         // Update cache after successful update
-        setUserProfile({...userProfile, ...userData});
+        setUserProfile(prev => ({...prev, ...userData}));
         setProfileLastFetched(Date.now());
         return result;
       },
@@ -126,10 +126,10 @@ export const ApiProvider = ({ children }) => {
         const result = await api.post('/api/users/skills', { skillName });
         // Update cache after adding skill
         if (userProfile && userProfile.skills) {
-          setUserProfile({
-            ...userProfile,
-            skills: [...userProfile.skills, result]
-          });
+          setUserProfile(prev => ({
+            ...prev,
+            skills: [...prev.skills, result]
+          }));
         }
         return result;
       },
@@ -137,83 +137,118 @@ export const ApiProvider = ({ children }) => {
         const result = await api.delete(`/api/users/skills/${skillId}`);
         // Update cache after deleting skill
         if (userProfile && userProfile.skills) {
-          setUserProfile({
-            ...userProfile,
-            skills: userProfile.skills.filter(skill => skill.id !== skillId)
-          });
+          setUserProfile(prev => ({
+            ...prev,
+            skills: prev.skills.filter(skill => skill.id !== skillId)
+          }));
         }
         return result;
       },
-      // Similar pattern for other user data modification methods
-      addProject: async (projectName) => {
-        const result = await api.post('/api/users/projects', { projectName });
+      addProject: async (projectData) => {
+        const result = await api.post('/api/users/projects', projectData);
         if (userProfile && userProfile.projects) {
-          setUserProfile({
-            ...userProfile,
-            projects: [...userProfile.projects, result]
-          });
+          setUserProfile(prev => ({
+            ...prev,
+            projects: [...prev.projects, result]
+          }));
+        }
+        return result;
+      },
+      updateProject: async (projectId, projectData) => {
+        const result = await api.put(`/api/users/projects/${projectId}`, projectData);
+        if (userProfile && userProfile.projects) {
+          setUserProfile(prev => ({
+            ...prev,
+            projects: prev.projects.map(proj => 
+              proj.id === projectId ? {...proj, ...projectData} : proj
+            )
+          }));
         }
         return result;
       },
       deleteProject: async (projectId) => {
         const result = await api.delete(`/api/users/projects/${projectId}`);
         if (userProfile && userProfile.projects) {
-          setUserProfile({
-            ...userProfile,
-            projects: userProfile.projects.filter(project => project.id !== projectId)
-          });
+          setUserProfile(prev => ({
+            ...prev,
+            projects: prev.projects.filter(project => project.id !== projectId)
+          }));
         }
         return result;
       },
       addCertification: async (certificationName) => {
         const result = await api.post('/api/users/certifications', { certificationName });
         if (userProfile && userProfile.certifications) {
-          setUserProfile({
-            ...userProfile,
-            certifications: [...userProfile.certifications, result]
-          });
+          setUserProfile(prev => ({
+            ...prev,
+            certifications: [...prev.certifications, result]
+          }));
         }
         return result;
       },
       deleteCertification: async (certId) => {
         const result = await api.delete(`/api/users/certifications/${certId}`);
         if (userProfile && userProfile.certifications) {
-          setUserProfile({
-            ...userProfile,
-            certifications: userProfile.certifications.filter(cert => cert.id !== certId)
-          });
+          setUserProfile(prev => ({
+            ...prev,
+            certifications: prev.certifications.filter(cert => cert.id !== certId)
+          }));
         }
         return result;
       },
-      addExperience: async (data) => {
-        const result = await api.post('/api/users/experiences', data);
+      addExperience: async (experienceData) => {
+        const result = await api.post('/api/users/experiences', experienceData);
         if (userProfile && userProfile.experiences) {
-          setUserProfile({
-            ...userProfile,
-            experiences: [...userProfile.experiences, result]
-          });
+          setUserProfile(prev => ({
+            ...prev,
+            experiences: [...prev.experiences, result]
+          }));
         }
         return result;
       },
-      updateExperience: async (id, data) => {
-        const result = await api.put(`/api/users/experiences/${id}`, data);
+      updateExperience: async (experienceId, experienceData) => {
+        const result = await api.put(`/api/users/experiences/${experienceId}`, experienceData);
         if (userProfile && userProfile.experiences) {
-          setUserProfile({
-            ...userProfile,
-            experiences: userProfile.experiences.map(exp => 
-              exp.id === id ? {...exp, ...data} : exp
+          setUserProfile(prev => ({
+            ...prev,
+            experiences: prev.experiences.map(exp => 
+              exp.id === experienceId ? {...exp, ...experienceData} : exp
             )
-          });
+          }));
         }
         return result;
       },
-      deleteExperience: async (id) => {
-        const result = await api.delete(`/api/users/experiences/${id}`);
+      deleteExperience: async (experienceId) => {
+        const result = await api.delete(`/api/users/experiences/${experienceId}`);
         if (userProfile && userProfile.experiences) {
-          setUserProfile({
-            ...userProfile,
-            experiences: userProfile.experiences.filter(exp => exp.id !== id)
-          });
+          setUserProfile(prev => ({
+            ...prev,
+            experiences: prev.experiences.filter(exp => exp.id !== experienceId)
+          }));
+        }
+        return result;
+      },
+      uploadResume: async (formData) => {
+        const result = await api.post('/api/users/resumes', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+        if (userProfile && userProfile.resumes) {
+          setUserProfile(prev => ({
+            ...prev,
+            resumes: [...prev.resumes, result]
+          }));
+        }
+        return result;
+      },
+      deleteResume: async (resumeId) => {
+        const result = await api.delete(`/api/users/resumes/${resumeId}`);
+        if (userProfile && userProfile.resumes) {
+          setUserProfile(prev => ({
+            ...prev,
+            resumes: prev.resumes.filter(resume => resume.id !== resumeId)
+          }));
         }
         return result;
       },
@@ -225,10 +260,16 @@ export const ApiProvider = ({ children }) => {
       getAll: (filters) => api.get('/api/jobs', { params: filters }),
       getById: (id) => api.get(`/api/jobs/${id}`),
       apply: (jobId, resumeId) => api.post('/api/applications', { jobId, resumeId }),
+      create: (jobData) => api.post('/api/jobs', jobData),
+      update: (jobId, jobData) => api.put(`/api/jobs/${jobId}`, jobData),
+      delete: (jobId) => api.delete(`/api/jobs/${jobId}`),
+      verify: (jobId, verified) => api.patch(`/api/jobs/${jobId}/verify`, { verified }),
     },
     applications: {
-      getAll: () => api.get('/api/applications'),
+      getMyApplications: () => api.get('/api/applications/my-applications'),
       getById: (id) => api.get(`/api/applications/${id}`),
+      updateStatus: (id, statusField, value) => api.patch(`/api/applications/${id}/status`, { statusField, value }),
+      completeStep: (id, stepId) => api.post(`/api/applications/${id}/complete-step`, { stepId }),
     }
   };
   

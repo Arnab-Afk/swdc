@@ -21,6 +21,7 @@ const DashboardLayout = () => {
     if (!userProfile) {
       api.user.getProfile();
     }
+    
   }, [api.user, userProfile]);
   
   useEffect(() => {
@@ -159,51 +160,50 @@ const DashboardLayout = () => {
         </nav>
 
         {/* User Profile & Logout - Still at bottom of sidebar */}
-        <div className="border-t bg-gray-50">
-          {userProfile && (
-            <div className="p-4">
-              <div className="flex items-center p-3 rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow">
-                <img 
-                  src={userProfile.profileImage || userProfile.gimg || 'https://via.placeholder.com/40'} 
-                  alt="Profile" 
-                  className="h-10 w-10 rounded-full mr-3 border-2 border-indigo-300 object-cover"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = 'https://via.placeholder.com/40?text=User';
-                  }}
-                />
-                <div className="flex-1 overflow-hidden">
-                  <p className="font-medium text-indigo-800 truncate">
-                    {`${userProfile.firstName || ''} ${userProfile.lastName || ''}`}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-0.5 truncate">{userProfile.email}</p>
-                  <div className="flex items-center mt-1">
-                    <FaGraduationCap className="text-indigo-500 mr-1" size={12} />
-                    <p className="text-xs text-indigo-600 truncate">
-                      {userProfile.degree ? 
-                        `${userProfile.degree}, ${userProfile.branch || 'Not specified'}` : 
-                        'Education details not added'
-                      }
-                    </p>
-                  </div>
-                </div>
+          <div className="border-t bg-gray-50">
+            {userProfile && (
+              <div className="p-4">
+                <div className="flex items-center p-3 rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow">
+            <img 
+              src={userProfile.gimg} 
+              alt="Profile" 
+              className="h-10 w-10 rounded-full mr-3 border-2 border-indigo-300 object-cover"
+              onError={(e) => {
+                e.target.onerror = null;
+              }}
+            />
+            <div className="flex-1 overflow-hidden">
+              <p className="font-medium text-indigo-800 truncate">
+                {`${userProfile.firstName || ''} ${userProfile.lastName || ''}`}
+              </p>
+              <p className="text-xs text-gray-500 mt-0.5 truncate">{userProfile.email}</p>
+              <div className="flex items-center mt-1">
+                <FaGraduationCap className="text-indigo-500 mr-1" size={12} />
+                <p className="text-xs text-indigo-600 truncate">
+                  {userProfile.degree ? 
+              `${userProfile.degree}, ${userProfile.branch || 'Not specified'}` : 
+              'Education details not added'
+                  }
+                </p>
               </div>
             </div>
-          )}
-          
-          <div className="px-4 pb-4">
-            <button 
-              onClick={handleLogout}
-              className="flex items-center justify-center space-x-2 w-full p-3 rounded-lg bg-white shadow-sm hover:bg-red-50 text-gray-700 hover:text-red-600 font-medium transition-colors border border-gray-200"
-            >
-              <FaSignOutAlt className="text-red-500" />
-              <span>Sign Out</span>
-            </button>
+                </div>
+              </div>
+            )}
+            
+            <div className="px-4 pb-4">
+              <button 
+                onClick={handleLogout}
+                className="flex items-center justify-center space-x-2 w-full p-3 rounded-lg bg-white shadow-sm hover:bg-red-50 text-gray-700 hover:text-red-600 font-medium transition-colors border border-gray-200"
+              >
+                <FaSignOutAlt className="text-red-500" />
+                <span>Sign Out</span>
+              </button>
+            </div>
           </div>
-        </div>
-      </aside>
+              </aside>
 
-      {/* Main Content - With margin to account for fixed sidebar */}
+              {/* Main Content - With margin to account for fixed sidebar */}
       <main className="ml-0 md:ml-72 flex-1 p-6 md:p-8 overflow-y-auto">
         {/* Notification Bar */}
         {notifications.length > 0 && (

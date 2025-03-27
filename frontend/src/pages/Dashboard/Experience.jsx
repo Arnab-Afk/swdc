@@ -45,7 +45,7 @@ const Experience = () => {
     };
     
     fetchData();
-  }, [api]);
+  }, [api.user]);
   
   const handleExperienceChange = (e) => {
     const { name, value } = e.target;
@@ -67,7 +67,7 @@ const Experience = () => {
         // Update existing experience
         await api.user.updateExperience(experienceData.id, experienceData);
         setExperiences(prev => prev.map(exp => 
-          exp.id === experienceData.id ? experienceData : exp
+          exp.id === experienceData.id ? { ...exp, ...experienceData } : exp
         ));
       } else {
         // Add new experience
@@ -101,7 +101,7 @@ const Experience = () => {
         // Update existing project
         await api.user.updateProject(projectData.id, projectData);
         setProjects(prev => prev.map(proj => 
-          proj.id === projectData.id ? projectData : proj
+          proj.id === projectData.id ? { ...proj, ...projectData } : proj
         ));
       } else {
         // Add new project
@@ -125,7 +125,14 @@ const Experience = () => {
   };
   
   const editExperience = (experience) => {
-    setCurrentExperience({ ...experience, isEditing: true });
+    // Format dates for the date input
+    const formattedExperience = {
+      ...experience,
+      fromDate: experience.fromDate ? new Date(experience.fromDate).toISOString().split('T')[0] : '',
+      toDate: experience.toDate ? new Date(experience.toDate).toISOString().split('T')[0] : '',
+      isEditing: true
+    };
+    setCurrentExperience(formattedExperience);
     setIsAddingExperience(true);
   };
   
@@ -172,29 +179,29 @@ const Experience = () => {
   
   return (
     <div>
-      {/* Work Experience Section */}
-      <div className="mb-10">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-semibold">Work Experience</h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-semibold">Experience & Projects</h2>
+        <div className="flex space-x-3">
           <button 
-            onClick={() => {
-              setCurrentExperience({
-                id: null,
-                company: '',
-                profile: '',
-                fromDate: '',
-                toDate: '',
-                description: '',
-                isEditing: false
-              });
-              setIsAddingExperience(true);
-            }}
-            className="flex items-center space-x-2 px-4 py-2 rounded-md bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors"
+            onClick={() => setIsAddingProject(true)}
+            className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            <FaPlus size={14} />
+            <span>Add Project</span>
+          </button>
+          <button 
+            onClick={() => setIsAddingExperience(true)}
+            className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
           >
             <FaPlus size={14} />
             <span>Add Experience</span>
           </button>
         </div>
+      </div>
+      
+      {/* Work Experiences */}
+      <div className="mb-10">
+        <h3 className="text-lg font-medium mb-4">Work Experience</h3>
         
         {experiences.length === 0 ? (
           <div className="bg-white rounded-lg shadow-md p-6 text-center">
@@ -212,8 +219,14 @@ const Experience = () => {
                       <h3 className="text-lg font-semibold">{experience.profile}</h3>
                       <p className="text-indigo-600">{experience.company}</p>
                       <p className="text-sm text-gray-500 mt-1">
-                        {new Date(experience.fromDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short' })} - 
-                        {experience.toDate ? new Date(experience.toDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short' }) : 'Present'}
+                        {experience.fromDate ? new Date(experience.fromDate).toLocaleDateString('en-US', { 
+                          month: 'short', 
+                          year: 'numeric' 
+                        }) : ''} 
+                        {experience.toDate ? ` - ${new Date(experience.toDate).toLocaleDateString('en-US', { 
+                          month: 'short', 
+                          year: 'numeric' 
+                        })}` : ' - Present'}
                       </p>
                     </div>
                     <div className="flex space-x-2">
@@ -231,7 +244,7 @@ const Experience = () => {
                       </button>
                     </div>
                   </div>
-                  <p className="mt-3 text-gray-700">{experience.description}</p>
+                  <p className="mt-4 text-gray-700">{experience.description}</p>
                 </div>
               </div>
             ))}
@@ -239,28 +252,9 @@ const Experience = () => {
         )}
       </div>
       
-      {/* Projects Section */}
+      {/* Projects */}
       <div>
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-semibold">Projects</h2>
-          <button 
-            onClick={() => {
-              setCurrentProject({
-                id: null,
-                projectName: '',
-                description: '',
-                technologies: '',
-                url: '',
-                isEditing: false
-              });
-              setIsAddingProject(true);
-            }}
-            className="flex items-center space-x-2 px-4 py-2 rounded-md bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors"
-          >
-            <FaPlus size={14} />
-            <span>Add Project</span>
-          </button>
-        </div>
+        <h3 className="text-lg font-medium mb-4">Projects</h3>
         
         {projects.length === 0 ? (
           <div className="bg-white rounded-lg shadow-md p-6 text-center">
@@ -292,7 +286,7 @@ const Experience = () => {
                   </div>
                   <p className="mt-2 text-gray-700 line-clamp-3">{project.description}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    {project.technologies.split(',').map((tech, index) => (
+                    {project.technologies && project.technologies.split(',').map((tech, index) => (
                       <span 
                         key={index}
                         className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs"
@@ -430,7 +424,7 @@ const Experience = () => {
           </div>
         </div>
       )}
-
+      
       {/* Project Modal */}
       {isAddingProject && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

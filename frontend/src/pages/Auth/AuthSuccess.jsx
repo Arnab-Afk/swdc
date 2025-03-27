@@ -21,14 +21,14 @@ const AuthSuccess = () => {
           throw new Error('Authentication failed: No token received');
         }
         
-        // Store token temporarily so the API context can use it
+        // Store token in localStorage
         localStorage.setItem('auth_token', token);
         
-        // Fetch user data using the API context
-        const userData = await api.user.getProfile();
+        // Fetch current user data using token
+        const userData = await api.auth.getCurrentUser();
         
         // Complete login with token and user data
-        login(token, userData);
+        login(token, userData.user);
         
         // Redirect to dashboard
         navigate('/dashboard');
