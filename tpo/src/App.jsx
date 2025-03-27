@@ -1,70 +1,44 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ApiProvider } from './contexts/ApiContext';
-import { AuthProvider } from './contexts/AuthContext';
 import DashboardLayout from './layouts/DashboardLayout';
-import DashboardHome from './pages/Dashboard/DashboardHome';
+import Applications from './pages/Applications';
 
-// These would be imported from their respective files in a full implementation
-const Login = () => <div>Login Page</div>;
-const StudentList = () => <div>Student List Page</div>;
-const StudentDetail = () => <div>Student Detail Page</div>;
-const CompanyList = () => <div>Company List Page</div>;
-const CompanyDetail = () => <div>Company Detail Page</div>;
-const JobList = () => <div>Job List Page</div>;
-const JobDetail = () => <div>Job Detail Page</div>;
-const JobApproval = () => <div>Job Approval Page</div>;
-const Reports = () => <div>Reports Page</div>;
-const Settings = () => <div>Settings Page</div>;
-const NotFound = () => <div>404 Not Found</div>;
-
-// Protected route component
-const ProtectedRoute = ({ children }) => {
-  const isAuthenticated = localStorage.getItem('tpo_auth_token');
-  // return isAuthenticated ? children : <Navigate to="/login" />;
-};
+// Import these pages as they're created
+// import Students from './pages/Students';
+// import Companies from './pages/Companies';
+// import Jobs from './pages/Jobs';
+// import Reports from './pages/Reports';
+// import Settings from './pages/Settings';
 
 function App() {
   return (
     <BrowserRouter>
       <ApiProvider>
-        <AuthProvider>
-          <Routes>
-            {/* Auth Routes */}
-            <Route path="/login" element={<Login />} />
-            
-            {/* Dashboard Routes */}
-            <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <DashboardLayout />
-              </ProtectedRoute>
-            }>
-              <Route index element={<DashboardHome />} />
-              
-              {/* Student Routes */}
-              <Route path="students" element={<StudentList />} />
-              <Route path="students/:id" element={<StudentDetail />} />
-              
-              {/* Company Routes */}
-              <Route path="companies" element={<CompanyList />} />
-              <Route path="companies/:id" element={<CompanyDetail />} />
-              
-              {/* Job Routes */}
-              <Route path="jobs" element={<JobList />} />
-              <Route path="jobs/:id" element={<JobDetail />} />
-              <Route path="jobs/approval" element={<JobApproval />} />
-              
-              {/* Other Routes */}
-              <Route path="reports" element={<Reports />} />
-              <Route path="settings" element={<Settings />} />
-            </Route>
-            
-            {/* Redirect root to dashboard */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            
-            {/* 404 Route */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
+        <Routes>
+          {/* Dashboard Routes */}
+          <Route path="/dashboard" element={<DashboardLayout />}>
+            <Route index element={<div>Dashboard Home</div>} />
+            <Route path="students" element={<div>Students Page</div>} />
+            <Route path="companies" element={<div>Companies Page</div>} />
+            <Route path="jobs" element={<div>Jobs Page</div>} />
+            <Route path="applications" element={<Applications />} />
+            <Route path="reports" element={<div>Reports Page</div>} />
+            <Route path="settings" element={<div>Settings Page</div>} />
+          </Route>
+
+          {/* Redirect root to dashboard */}
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+          {/* 404 Route */}
+          <Route path="*" element={
+            <div className="flex items-center justify-center min-h-screen">
+              <div className="text-center">
+                <h1 className="text-4xl font-bold text-red-500">404</h1>
+                <p className="text-xl mt-2">Page not found</p>
+              </div>
+            </div>
+          } />
+        </Routes>
       </ApiProvider>
     </BrowserRouter>
   );
