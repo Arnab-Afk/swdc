@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { FaGraduationCap, FaUniversity, FaCalendarAlt, FaPen, FaPlus, FaTrash, FaTimes } from 'react-icons/fa';
+import { useApi } from '../../contexts/ApiContext';
 
 const Education = () => {
+  const { api } = useApi();
   const [educationInfo, setEducationInfo] = useState({
     degree: '',
     branch: '',
@@ -13,6 +15,7 @@ const Education = () => {
   
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [showCertModal, setShowCertModal] = useState(false);
   const [newCertificate, setNewCertificate] = useState({
     name: '',
@@ -21,60 +24,77 @@ const Education = () => {
     expiryDate: '',
     credentialId: ''
   });
-  const [certificates, setCertificates] = useState([
-    { id: 1, name: 'AWS Certified Developer', organization: 'Amazon', issueDate: 'Jan 2025' },
-    { id: 2, name: 'React Certification', organization: 'Meta', issueDate: 'Nov 2024' }
-  ]);
   
-  const [semesterMarks, setSemesterMarks] = useState([
-    { 
-      id: 1, 
-      semester: '1st Semester', 
-      gpa: '8.7', 
-      year: '2021-22', 
-      subjects: [
-        { name: 'Data Structures', grade: 'A', credits: 4 },
-        { name: 'Computer Networks', grade: 'A-', credits: 3 },
-        { name: 'Database Systems', grade: 'B+', credits: 4 }
-      ]
-    },
-    { 
-      id: 2, 
-      semester: '2nd Semester', 
-      gpa: '8.9', 
-      year: '2022-23', 
-      subjects: [
-        { name: 'Algorithms', grade: 'A', credits: 4 },
-        { name: 'Operating Systems', grade: 'A', credits: 4 },
-        { name: 'Web Technologies', grade: 'A-', credits: 3 }
-      ]
-    }
-  ]);
+  const [certificates, setCertificates] = useState([]);
+  const [semesterMarks, setSemesterMarks] = useState([]);
   const [expandedSemester, setExpandedSemester] = useState(null);
   
-  // Simulated data fetch - would be an API call in production
+  // Check if the API is properly initialized
   useEffect(() => {
-    const fetchEducationInfo = async () => {
-      try {
-        // Simulated API response
-        setTimeout(() => {
-          setEducationInfo({
-            degree: 'Bachelor of Technology',
-            branch: 'Computer Science',
-            yearOfGraduation: 2025,
-            cgpa: 8.5,
-            rollno: 'CS2023001',
-            universityName: 'National Institute of Technology',
-          });
-          setLoading(false);
-        }, 600);
-      } catch (error) {
-        console.error('Error fetching education info:', error);
-        setLoading(false);
+    if (!api) {
+      console.error('API context is not initialized');
+      setError('API connection error. Please refresh the page or try again later.');
+    } else if (!api.education) {
+      console.error('Education API methods are not available');
+      setError('Education API services are not available. Please contact support.');
+    }
+  }, [api]);
+
+  // Update fetchEducationData to handle missing API
+  const fetchEducationData = useCallback(async () => {
+    if (!api?.education) {
+      setError('API services are not available. Please try again later.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      // Check if each method exists before calling it
+      if (typeof api.education.getEducationInfo === 'function') {
+        const educationData = await api.education.getEducationInfo();
+        setEducationInfo(educationData || {});
       }
-    };
-    
-    fetchEducationInfo();
+      
+      if (typeof api.education.getCertificates === 'function') {
+        try {
+          const certData = await api.education.getCertificates();
+          // Ensure certificates is always an array
+          setCertificates(Array.isArray(certData) ? certData : []);
+        } catch (certError) {
+          console.error('Error fetching certificates:', certError);
+          setCertificates([]);
+        }
+      }
+      
+      if (typeof api.education.getSemesterMarks === 'function') {
+        try {
+          const marksData = await api.education.getSemesterMarks();
+          // Ensure semester marks is always an array
+          setSemesterMarks(Array.isArray(marksData) ? marksData : []);
+        } catch (marksError) {
+          console.error('Error fetching semester marks:', marksError);
+          setSemesterMarks([]);
+        }
+      }
+      
+      setError(null);
+    } catch (error) {
+      console.error('Error fetching education data:', error);
+      setError('Failed to load your education information. Please try again later.');
+      // Ensure defaults are set even if the main request fails
+      setCertificates([]);
+      setSemesterMarks([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [api]);
+
+  // Fetch education data from backend
+  useEffect(() => {
+    fetchEducationData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
   const handleChange = (e) => {
@@ -84,21 +104,40 @@ const Education = () => {
   
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!api?.education?.updateEducationInfo) {
+      setError('Update service is not available. Please try again later.');
+      return;
+    }
+    
     try {
-      // In a real app, this would be an API call
-      // await fetch('/api/users/education', {
-      //   method: 'PUT',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     'Authorization': `Bearer ${localStorage.getItem('token')}`
-      //   },
-      //   body: JSON.stringify(educationInfo)
-      // });
+      setLoading(true);
       
-      console.log('Updated education info:', educationInfo);
+      // Ensure all numeric values are properly formatted
+      const formattedData = {
+        ...educationInfo,
+        cgpa: parseFloat(educationInfo.cgpa || 0),
+        yearOfGraduation: parseInt(educationInfo.yearOfGraduation || 0),
+      };
+      
+      // Log the data for debugging
+      console.log('Submitting education data:', formattedData);
+      
+      // Call the API with formatted data
+      const response = await api.education.updateEducationInfo(formattedData);
+      
+      // Update local state with response data
+      setEducationInfo(response || formattedData);
       setIsEditing(false);
+      setError(null);
+      
+      // Show success message
+      alert('Education information updated successfully!');
     } catch (error) {
       console.error('Error updating education info:', error);
+      setError('Failed to update your education information. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
   
@@ -107,24 +146,46 @@ const Education = () => {
     setNewCertificate(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleAddCertificate = (e) => {
+  const handleAddCertificate = async (e) => {
     e.preventDefault();
-    const newCert = {
-      id: certificates.length + 1,
-      ...newCertificate
-    };
-    setCertificates([...certificates, newCert]);
-    setNewCertificate({
-      name: '',
-      organization: '',
-      issueDate: '',
-      expiryDate: '',
-      credentialId: ''
-    });
-    setShowCertModal(false);
+    try {
+      setLoading(true);
+      const newCert = await api.education.addCertificate(newCertificate);
+      setCertificates([...certificates, newCert]);
+      setNewCertificate({
+        name: '',
+        organization: '',
+        issueDate: '',
+        expiryDate: '',
+        credentialId: ''
+      });
+      setShowCertModal(false);
+      setError(null);
+    } catch (error) {
+      console.error('Error adding certificate:', error);
+      setError('Failed to add certificate. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleDeleteCertificate = async (certId) => {
+    if (!window.confirm('Are you sure you want to delete this certificate?')) return;
+    
+    try {
+      setLoading(true);
+      await api.education.deleteCertificate(certId);
+      setCertificates(certificates.filter(cert => cert.id !== certId));
+      setError(null);
+    } catch (error) {
+      console.error('Error deleting certificate:', error);
+      setError('Failed to delete certificate. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (loading) {
+  if (loading && !isEditing) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
@@ -134,11 +195,18 @@ const Education = () => {
   
   return (
     <div>
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
+        </div>
+      )}
+      
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-semibold">Education Information</h2>
         <button 
           onClick={() => setIsEditing(!isEditing)}
           className="flex items-center space-x-2 px-4 py-2 rounded-md bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors"
+          disabled={loading}
         >
           {isEditing ? (
             <>
@@ -234,8 +302,9 @@ const Education = () => {
               <button 
                 type="submit"
                 className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+                disabled={loading}
               >
-                Save Changes
+                {loading ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </form>
@@ -250,7 +319,7 @@ const Education = () => {
                 </div>
                 <div className="ml-4">
                   <h3 className="text-sm font-medium text-gray-500">Degree</h3>
-                  <p className="mt-1 text-base">{educationInfo.degree}</p>
+                  <p className="mt-1 text-base">{educationInfo.degree || 'Not specified'}</p>
                 </div>
               </div>
               
@@ -262,7 +331,7 @@ const Education = () => {
                 </div>
                 <div className="ml-4">
                   <h3 className="text-sm font-medium text-gray-500">Institution</h3>
-                  <p className="mt-1 text-base">{educationInfo.universityName}</p>
+                  <p className="mt-1 text-base">{educationInfo.universityName || 'Not specified'}</p>
                 </div>
               </div>
               
@@ -274,7 +343,7 @@ const Education = () => {
                 </div>
                 <div className="ml-4">
                   <h3 className="text-sm font-medium text-gray-500">Graduation Year</h3>
-                  <p className="mt-1 text-base">{educationInfo.yearOfGraduation}</p>
+                  <p className="mt-1 text-base">{educationInfo.yearOfGraduation || 'Not specified'}</p>
                 </div>
               </div>
               
@@ -286,7 +355,7 @@ const Education = () => {
                 </div>
                 <div className="ml-4">
                   <h3 className="text-sm font-medium text-gray-500">CGPA</h3>
-                  <p className="mt-1 text-base">{educationInfo.cgpa}</p>
+                  <p className="mt-1 text-base">{educationInfo.cgpa || 'Not specified'}</p>
                 </div>
               </div>
               
@@ -298,7 +367,7 @@ const Education = () => {
                 </div>
                 <div className="ml-4">
                   <h3 className="text-sm font-medium text-gray-500">Branch/Major</h3>
-                  <p className="mt-1 text-base">{educationInfo.branch}</p>
+                  <p className="mt-1 text-base">{educationInfo.branch || 'Not specified'}</p>
                 </div>
               </div>
               
@@ -310,7 +379,7 @@ const Education = () => {
                 </div>
                 <div className="ml-4">
                   <h3 className="text-sm font-medium text-gray-500">Roll Number</h3>
-                  <p className="mt-1 text-base">{educationInfo.rollno}</p>
+                  <p className="mt-1 text-base">{educationInfo.rollno || 'Not specified'}</p>
                 </div>
               </div>
             </div>
@@ -318,7 +387,7 @@ const Education = () => {
         )}
       </div>
       
-      {/* Additional Certificates Section */}
+      {/* Certifications Section */}
       <div className="mt-8">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-semibold">Certifications</h3>
@@ -326,6 +395,7 @@ const Education = () => {
           <button 
             onClick={() => setShowCertModal(true)}
             className="flex items-center space-x-2 px-4 py-2 rounded-md bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
+            disabled={loading}
           >
             <FaPlus size={14} />
             <span>Add Certificate</span>
@@ -333,32 +403,107 @@ const Education = () => {
         </div>
         
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <ul className="divide-y divide-gray-200">
-            {certificates.map(cert => (
-              <li key={cert.id} className="p-4 hover:bg-gray-50">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h4 className="font-medium">{cert.name}</h4>
-                    <p className="text-sm text-gray-500">Issued: {cert.issueDate}</p>
+          {/* Replace the certificates mapping section with this safer version */}
+          {Array.isArray(certificates) && certificates.length > 0 ? (
+            <ul className="divide-y divide-gray-200">
+              {certificates.map(cert => (
+                <li key={cert.id || `cert-${Math.random()}`} className="p-4 hover:bg-gray-50">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h4 className="font-medium">{cert.name || 'Unnamed Certificate'}</h4>
+                      <div className="text-sm text-gray-500 mt-1">
+                        <p>Issued by: {cert.organization || 'Unknown organization'}</p>
+                        <p>
+                          Date: {cert.issueDate ? new Date(cert.issueDate).toLocaleDateString('en-US', {
+                            month: 'short',
+                            year: 'numeric',
+                            day: 'numeric'
+                          }) : 'Date not specified'}
+                        </p>
+                        {cert.credentialId && <p>Credential ID: {cert.credentialId}</p>}
+                      </div>
+                    </div>
+                    <div className="flex space-x-2">
+                      <button 
+                        className="p-1.5 text-gray-500 hover:text-red-600"
+                        onClick={() => handleDeleteCertificate(cert.id)}
+                        disabled={loading || !cert.id}
+                      >
+                        <FaTrash size={14} />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex space-x-2">
-                    <button className="p-1.5 text-gray-500 hover:text-indigo-600">
-                      <FaPen size={14} />
-                    </button>
-                    <button className="p-1.5 text-gray-500 hover:text-red-600">
-                      <FaTrash size={14} />
-                    </button>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="p-6 text-center text-gray-500">
+              <p>You haven't added any certifications yet.</p>
+            </div>
+          )}
         </div>
       </div>
 
+      {/* Semester Marks Section with enhanced safety */}
+{Array.isArray(semesterMarks) && semesterMarks.length > 0 ? (
+  <div className="mt-8">
+    <h3 className="text-xl font-semibold mb-4">Semester Marks</h3>
+    
+    <div className="space-y-4">
+      {semesterMarks.map(semester => (
+        <div key={semester.id || `sem-${Math.random()}`} className="bg-white rounded-lg shadow-md overflow-hidden">
+          <div 
+            className="p-4 cursor-pointer flex justify-between items-center hover:bg-gray-50"
+            onClick={() => setExpandedSemester(expandedSemester === semester.id ? null : semester.id)}
+          >
+            <div>
+              <h4 className="font-medium">{semester.semester || 'Unknown Semester'}</h4>
+              <p className="text-sm text-gray-500">Academic Year: {semester.year || 'N/A'}</p>
+            </div>
+            <div className="flex items-center">
+              <div className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm">
+                GPA: {semester.gpa || 'N/A'}
+              </div>
+            </div>
+          </div>
+          
+          {expandedSemester === semester.id && (
+            <div className="border-t border-gray-200 p-4">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Grade</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Credits</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {Array.isArray(semester.subjects) ? (
+                    semester.subjects.map((subject, index) => (
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="px-4 py-2">{subject.name || 'Unnamed Subject'}</td>
+                        <td className="px-4 py-2">{subject.grade || 'N/A'}</td>
+                        <td className="px-4 py-2">{subject.credits || 'N/A'}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="3" className="px-4 py-2 text-center text-gray-500">No subject data available</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  </div>
+) : null}
+
       {/* Certificate Modal */}
       {showCertModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50">
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
           <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-semibold">Add Certificate</h3>
@@ -424,8 +569,9 @@ const Education = () => {
                 <button 
                   type="submit"
                   className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+                  disabled={loading}
                 >
-                  Add Certificate
+                  {loading ? 'Adding...' : 'Add Certificate'}
                 </button>
               </div>
             </form>

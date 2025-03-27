@@ -53,6 +53,7 @@ model User {
   degree             String             @default("") @db.VarChar(100)
   branch             String             @default("") @db.VarChar(100)
   yearOfGraduation   Int                @default(0) @map("year_of_graduation")
+  universityName     String    @default("") @map("university_name") @db.VarChar(200)
   cgpa               Decimal            @default(0.00) @db.Decimal(3, 2)
   rollno             String             @default("") @db.VarChar(50)
   skills             UserSkill[]
@@ -112,10 +113,14 @@ model UserProject {
 }
 
 model UserCertification {
-  id                Int    @id @default(autoincrement()) @map("user_certification_id")
-  userId            Int    @map("user_id")
-  certificationName String @map("certification_name") @db.VarChar(200)
-  user              User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                Int       @id @default(autoincrement()) @map("user_certification_id")
+  userId            Int       @map("user_id")
+  certificationName String    @map("certification_name") @db.VarChar(200)
+  organization      String    @default("") @db.VarChar(200)
+  issueDate         DateTime? @map("issue_date") @db.Date
+  expiryDate        DateTime? @map("expiry_date") @db.Date
+  credentialId      String    @default("") @map("credential_id") @db.VarChar(100)
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_certifications")
 }

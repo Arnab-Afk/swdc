@@ -270,6 +270,62 @@ export const ApiProvider = ({ children }) => {
       getById: (id) => api.get(`/api/applications/${id}`),
       updateStatus: (id, statusField, value) => api.patch(`/api/applications/${id}/status`, { statusField, value }),
       completeStep: (id, stepId) => api.post(`/api/applications/${id}/complete-step`, { stepId }),
+    },
+    education: {
+      getEducationInfo: async () => {
+        try {
+          const response = await axios.get('/api/education/info');
+          return response.data;
+        } catch (error) {
+          console.error('Error fetching education info:', error);
+          throw error;
+        }
+      },
+      updateEducationInfo: async (data) => {
+        try {
+          const response = await axios.put('/api/education/info', data);
+          return response.data;
+        } catch (error) {
+          console.error('Error updating education info:', error);
+          throw error;
+        }
+      },
+      getCertificates: async () => {
+        try {
+          const response = await axios.get('/api/education/certificates');
+          return response.data;
+        } catch (error) {
+          console.error('Error fetching certificates:', error);
+          throw error;
+        }
+      },
+      addCertificate: async (certData) => {
+        try {
+          const response = await axios.post('/api/education/certificates', certData);
+          return response.data;
+        } catch (error) {
+          console.error('Error adding certificate:', error);
+          throw error;
+        }
+      },
+      deleteCertificate: async (certId) => {
+        try {
+          await axios.delete(`/api/education/certificates/${certId}`);
+          return true;
+        } catch (error) {
+          console.error('Error deleting certificate:', error);
+          throw error;
+        }
+      },
+      getSemesterMarks: async () => {
+        try {
+          const response = await axios.get('/api/education/semesters');
+          return response.data;
+        } catch (error) {
+          console.error('Error fetching semester marks:', error);
+          throw error;
+        }
+      }
     }
   };
   

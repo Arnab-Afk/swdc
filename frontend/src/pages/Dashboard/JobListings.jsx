@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useApi } from '../../contexts/ApiContext';
-import { FaMapMarkerAlt, FaMoneyBillWave, FaCalendarAlt, FaSearch, FaFilter } from 'react-icons/fa';
+import { FaMapMarkerAlt, FaMoneyBillWave, FaCalendarAlt, FaSearch, FaFilter, FaBriefcase, FaBuilding } from 'react-icons/fa';
 
 const JobListings = () => {
   const { api } = useApi();
@@ -11,7 +11,7 @@ const JobListings = () => {
   
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
-  const [locationFilter, setLocationFilter] = useState('');
+  const [locationTypeFilter, setLocationTypeFilter] = useState('');
   const [jobTypeFilter, setJobTypeFilter] = useState('');
   
   // Fetch jobs on component mount
@@ -21,7 +21,7 @@ const JobListings = () => {
         setLoading(true);
         // Create filters object based on selected filters
         const filters = {};
-        if (locationFilter) filters.location = locationFilter;
+        if (locationTypeFilter) filters.locationType = locationTypeFilter;
         if (jobTypeFilter) filters.jobType = jobTypeFilter;
         
         const jobsData = await api.jobs.getAll(filters);
@@ -49,6 +49,20 @@ const JobListings = () => {
     return matchesSearch;
   });
   
+  // Format job type for display (convert "FULL-TIME" to "Full-time")
+  const formatJobType = (type) => {
+    if (!type) return '';
+    return type.split('-').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join('-');
+  };
+  
+  // Format location type for display (convert "REMOTE" to "Remote")
+  const formatLocationType = (type) => {
+    if (!type) return '';
+    return type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+  };
+  
   // Handle search input change
   const handleSearchChange = (e) => {
     setSearchTerm(e.target.value);
@@ -60,7 +74,7 @@ const JobListings = () => {
       setLoading(true);
       const filters = {
         search: searchTerm,
-        location: locationFilter,
+        locationType: locationTypeFilter,
         jobType: jobTypeFilter
       };
       
@@ -73,6 +87,16 @@ const JobListings = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Format salary value for display
+  const formatSalary = (salary) => {
+    if (!salary) return 'Not specified';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0
+    }).format(salary);
   };
 
   return (
@@ -98,20 +122,20 @@ const JobListings = () => {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Location Type</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <FaMapMarkerAlt className="text-gray-400" />
               </div>
               <select 
-                value={locationFilter}
-                onChange={(e) => setLocationFilter(e.target.value)}
+                value={locationTypeFilter}
+                onChange={(e) => setLocationTypeFilter(e.target.value)}
                 className="pl-10 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
               >
-                <option value="">All Locations</option>
-                <option value="remote">Remote</option>
-                <option value="hybrid">Hybrid</option>
-                <option value="onsite">On-site</option>
+                <option value="">All Location Types</option>
+                <option value="REMOTE">Remote</option>
+                <option value="HYBRID">Hybrid</option>
+                <option value="ONSITE">On-site</option>
               </select>
             </div>
           </div>
@@ -119,18 +143,18 @@ const JobListings = () => {
             <label className="block text-sm font-medium text-gray-700 mb-1">Job Type</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FaFilter className="text-gray-400" />
+                <FaBriefcase className="text-gray-400" />
               </div>
               <select 
                 value={jobTypeFilter}
                 onChange={(e) => setJobTypeFilter(e.target.value)}
                 className="pl-10 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
               >
-                <option value="">All Types</option>
-                <option value="fulltime">Full-time</option>
-                <option value="parttime">Part-time</option>
-                <option value="internship">Internship</option>
-                <option value="contract">Contract</option>
+                <option value="">All Job Types</option>
+                <option value="FULL-TIME">Full-time</option>
+                <option value="PART-TIME">Part-time</option>
+                <option value="INTERNSHIP">Internship</option>
+                <option value="CONTRACT">Contract</option>
               </select>
             </div>
           </div>
@@ -188,13 +212,40 @@ const JobListings = () => {
                       <h3 className="text-xl font-semibold text-gray-800">{job.jobTitle}</h3>
                       <p className="text-gray-600">{job.companyName}</p>
                       <div className="mt-2 flex flex-wrap gap-2">
-                        <span className="flex items-center text-sm text-gray-500">
-                          <FaMapMarkerAlt className="mr-1" /> {job.location}
-                        </span>
-                        <span className="text-sm text-gray-500">•</span>
-                        <span className="flex items-center text-sm text-gray-500">
-                          <FaMoneyBillWave className="mr-1" /> {job.salary}
-                        </span>
+                        {job.location && (
+                          <span className="flex items-center text-sm text-gray-500">
+                            <FaBuilding className="mr-1" /> {job.location}
+                          </span>
+                        )}
+                        
+                        {job.locationType && (
+                          <>
+                            <span className="text-sm text-gray-500">•</span>
+                            <span className="flex items-center text-sm text-gray-500">
+                              <FaMapMarkerAlt className="mr-1" /> 
+                              {formatLocationType(job.locationType)}
+                            </span>
+                          </>
+                        )}
+                        
+                        {job.jobType && (
+                          <>
+                            <span className="text-sm text-gray-500">•</span>
+                            <span className="flex items-center text-sm text-gray-500">
+                              <FaBriefcase className="mr-1" /> 
+                              {formatJobType(job.jobType)}
+                            </span>
+                          </>
+                        )}
+                        
+                        {job.salary && (
+                          <>
+                            <span className="text-sm text-gray-500">•</span>
+                            <span className="flex items-center text-sm text-gray-500">
+                              <FaMoneyBillWave className="mr-1" /> {formatSalary(job.salary)}
+                            </span>
+                          </>
+                        )}
                       </div>
                       
                       {/* Skills badges */}

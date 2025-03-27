@@ -8,6 +8,7 @@ const passport = require("passport");
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
+const educationRoutes = require('./routes/education.route');
 
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const app = express();
@@ -22,7 +23,7 @@ app.use("/api/jobs", jobRouter);
 app.use("/api/applications", applicationRouter);
 app.use("/api/companies", companyRouter);
 app.use("/api/auth", authRouter);
-
+app.use('/api/education', educationRoutes);
 const version = "v1"; 
 app.get("/", (req, res) => {
   res.send("Placement Portal API");

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FaBuilding, FaMapMarkerAlt, FaMoneyBillWave, FaCalendarAlt, 
          FaGraduationCap, FaLaptopCode, FaClock, FaFileAlt } from 'react-icons/fa';
@@ -7,39 +7,56 @@ import { useApi } from '../../contexts/ApiContext';
 const JobDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { api, isLoading: apiLoading, userProfile } = useApi();
+  const { api } = useApi();
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedResume, setSelectedResume] = useState('');
   const [userResumes, setUserResumes] = useState([]);
   const [applied, setApplied] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const apiCallMade = useRef(false);
   
   useEffect(() => {
+    // Prevent multiple API calls
+    if (apiCallMade.current) return;
+    
     const fetchJobDetails = async () => {
       try {
         setLoading(true);
+        
+        // Get job details
         const jobData = await api.jobs.getById(id);
         setJob(jobData);
         
-        // If user profile is available, get their resumes
-        if (userProfile && userProfile.resumes) {
-          setUserResumes(userProfile.resumes);
-        } else {
-          // Otherwise fetch profile to get resumes
-          const profileData = await api.user.getProfile();
-          setUserResumes(profileData.resumes || []);
+        // Check if user has already applied for this job
+        try {
+          const hasApplied = await api.applications.checkIfApplied(id);
+          setApplied(hasApplied);
+        } catch (error) {
+          console.error('Error checking application status:', error);
         }
         
-        setLoading(false);
+        // Get user's resumes
+        try {
+          const profileData = await api.user.getProfile();
+          if (profileData && profileData.resumes) {
+            setUserResumes(profileData.resumes);
+          }
+        } catch (error) {
+          console.error('Error fetching user resumes:', error);
+        }
+        
       } catch (error) {
         console.error('Error fetching job details:', error);
+      } finally {
         setLoading(false);
+        apiCallMade.current = true;
       }
     };
     
     fetchJobDetails();
-  }, [id, api, userProfile]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]); // Only depend on the job id
   
   const handleApply = async () => {
     if (!selectedResume) {
@@ -48,14 +65,17 @@ const JobDetail = () => {
     }
     
     try {
-      await api.jobs.apply(id, selectedResume);
+      await api.applications.apply({
+        jobId: id,
+        resumeId: selectedResume
+      });
+      
       setApplied(true);
       setShowModal(false);
       
-      // Navigate to applications page after successful application
-      setTimeout(() => {
-        navigate('/dashboard/applications');
-      }, 1500);
+      // Show success message and redirect
+      alert('Application submitted successfully!');
+      navigate('/dashboard/applications');
     } catch (error) {
       console.error('Error applying to job:', error);
       alert('Failed to apply for this job. Please try again.');
@@ -92,17 +112,25 @@ const JobDetail = () => {
               <p className="text-lg text-gray-600 mt-1">{job.companyName}</p>
               <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-500">
                 <div className="flex items-center">
-                  <FaMapMarkerAlt className="mr-1" /> {job.location}
+                  <FaMapMarkerAlt className="mr-1" /> {job.location || 'Location not specified'}
                 </div>
-                <div className="flex items-center">
-                  <FaMoneyBillWave className="mr-1" /> {job.salary}
-                </div>
+                {job.salary && (
+                  <div className="flex items-center">
+                    <FaMoneyBillWave className="mr-1" /> {new Intl.NumberFormat('en-US', {
+                      style: 'currency',
+                      currency: 'USD',
+                      maximumFractionDigits: 0
+                    }).format(job.salary)}
+                  </div>
+                )}
                 <div className="flex items-center">
                   <FaCalendarAlt className="mr-1" /> Posted: {new Date(job.postedDate).toLocaleDateString()}
                 </div>
                 <div className="flex items-center">
                   <FaClock className="mr-1 text-amber-500" /> 
-                  <span className="text-amber-500 font-medium">Deadline: {new Date(job.applicationDeadline).toLocaleDateString()}</span>
+                  <span className="text-amber-500 font-medium">
+                    Deadline: {new Date(job.applicationDeadline).toLocaleDateString()}
+                  </span>
                 </div>
               </div>
             </div>
@@ -115,8 +143,11 @@ const JobDetail = () => {
                 <button 
                   onClick={() => setShowModal(true)}
                   className="px-5 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+                  disabled={new Date(job.applicationDeadline) < new Date()}
                 >
-                  Apply Now
+                  {new Date(job.applicationDeadline) < new Date() 
+                    ? 'Application Closed' 
+                    : 'Apply Now'}
                 </button>
               )}
             </div>
@@ -136,57 +167,65 @@ const JobDetail = () => {
               {/* Skills Required */}
               <section>
                 <h2 className="text-xl font-semibold mb-4">Skills Required</h2>
-                <div className="flex flex-wrap gap-2">
-                  {job.skills.map(skill => (
-                    <span 
-                      key={skill.id} 
-                      className="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm"
-                    >
-                      {skill.skillName}
-                    </span>
-                  ))}
-                </div>
+                {job.skills && job.skills.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {job.skills.map(skill => (
+                      <span 
+                        key={skill.id} 
+                        className="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm"
+                      >
+                        {skill.skillName}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500">No specific skills listed for this job.</p>
+                )}
               </section>
               
               {/* Selection Process */}
               <section>
                 <h2 className="text-xl font-semibold mb-4">Selection Process</h2>
-                <div className="relative">
-                  {/* Process Timeline */}
-                  <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-indigo-100"></div>
-                  
-                  <div className="space-y-4 ml-2">
-                    {job.processSteps.map((step, index) => (
-                      <div key={step.id} className="relative pl-10">
-                        <div className="absolute left-0 -translate-x-1/2 flex items-center justify-center w-8 h-8 rounded-full border-2 border-indigo-200 bg-white text-indigo-600 font-bold">
-                          {step.stepNumber}
-                        </div>
-                        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-                          <h3 className="font-medium">{step.stepName}</h3>
-                          <p className="text-sm text-gray-600 mt-1">{step.description}</p>
-                          <div className="flex flex-wrap gap-x-3 mt-2 text-xs text-gray-500">
-                            {step.fromDate && step.tillDate && (
-                              <span className="flex items-center">
-                                <FaCalendarAlt className="mr-1" /> 
-                                {new Date(step.fromDate).toLocaleDateString()} to {new Date(step.tillDate).toLocaleDateString()}
-                              </span>
-                            )}
-                            {step.location && (
-                              <span className="flex items-center">
-                                <FaMapMarkerAlt className="mr-1" /> {step.location}
-                              </span>
-                            )}
-                            {step.durationMinutes && (
-                              <span className="flex items-center">
-                                <FaClock className="mr-1" /> {step.durationMinutes} minutes
-                              </span>
-                            )}
+                {job.processSteps && job.processSteps.length > 0 ? (
+                  <div className="relative">
+                    {/* Process Timeline */}
+                    <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-indigo-100"></div>
+                    
+                    <div className="space-y-4 ml-2">
+                      {job.processSteps.map((step) => (
+                        <div key={step.id} className="relative pl-10">
+                          <div className="absolute left-0 -translate-x-1/2 flex items-center justify-center w-8 h-8 rounded-full border-2 border-indigo-200 bg-white text-indigo-600 font-bold">
+                            {step.stepNumber}
+                          </div>
+                          <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                            <h3 className="font-medium">{step.stepName}</h3>
+                            <p className="text-sm text-gray-600 mt-1">{step.description}</p>
+                            <div className="flex flex-wrap gap-x-3 mt-2 text-xs text-gray-500">
+                              {step.fromDate && step.tillDate && (
+                                <span className="flex items-center">
+                                  <FaCalendarAlt className="mr-1" /> 
+                                  {new Date(step.fromDate).toLocaleDateString()} to {new Date(step.tillDate).toLocaleDateString()}
+                                </span>
+                              )}
+                              {step.location && (
+                                <span className="flex items-center">
+                                  <FaMapMarkerAlt className="mr-1" /> {step.location}
+                                </span>
+                              )}
+                              {step.durationMinutes && (
+                                <span className="flex items-center">
+                                  <FaClock className="mr-1" /> {step.durationMinutes} minutes
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <p className="text-gray-500">No selection process details available.</p>
+                )}
               </section>
             </div>
             
@@ -200,14 +239,18 @@ const JobDetail = () => {
                     <FaGraduationCap className="mt-1 text-indigo-600 mr-2 flex-shrink-0" />
                     <div>
                       <p className="font-medium">Education</p>
-                      <p className="text-sm text-gray-600">{job.degree}</p>
+                      <p className="text-sm text-gray-600">{job.degree || 'Not specified'}</p>
                     </div>
                   </li>
                   <li className="flex">
                     <FaLaptopCode className="mt-1 text-indigo-600 mr-2 flex-shrink-0" />
                     <div>
                       <p className="font-medium">Branch</p>
-                      <p className="text-sm text-gray-600">{job.branches.map(b => b.branchName).join(', ')}</p>
+                      <p className="text-sm text-gray-600">
+                        {job.branches && job.branches.length > 0 
+                          ? job.branches.map(b => b.branchName).join(', ')
+                          : 'Any branch'}
+                      </p>
                     </div>
                   </li>
                   <li className="flex">
@@ -216,7 +259,7 @@ const JobDetail = () => {
                     </svg>
                     <div>
                       <p className="font-medium">Min. CGPA</p>
-                      <p className="text-sm text-gray-600">{job.minCgpa}</p>
+                      <p className="text-sm text-gray-600">{job.minCgpa || 'Not specified'}</p>
                     </div>
                   </li>
                   <li className="flex">
@@ -225,7 +268,11 @@ const JobDetail = () => {
                     </svg>
                     <div>
                       <p className="font-medium">Experience</p>
-                      <p className="text-sm text-gray-600">{job.minExperienceMonths ? `${Math.floor(job.minExperienceMonths / 12)} years ${job.minExperienceMonths % 12} months` : 'No experience required'}</p>
+                      <p className="text-sm text-gray-600">
+                        {job.minExperienceMonths 
+                          ? `${Math.floor(job.minExperienceMonths / 12)} years ${job.minExperienceMonths % 12} months` 
+                          : 'No experience required'}
+                      </p>
                     </div>
                   </li>
                 </ul>
