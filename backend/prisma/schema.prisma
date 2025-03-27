@@ -1,0 +1,228 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Application {
+  id                     Int                     @id @default(autoincrement()) @map("application_id")
+  studentId              String                  @map("student_id") @db.VarChar(100)
+  jobId                  String                  @map("job_id") @db.VarChar(100)
+  resumeId               String                  @map("resume_id") @db.VarChar(100)
+  applicationDate        DateTime                @default(now()) @map("application_date")
+  statusApplied          Boolean                 @default(false) @map("status_applied")
+  statusShortlisted      Boolean                 @default(false) @map("status_shortlisted")
+  statusInterviewScheduled Boolean               @default(false) @map("status_interview_scheduled")
+  statusTechnicalRound   Boolean                 @default(false) @map("status_technical_round")
+  statusOfferMade        Boolean                 @default(false) @map("status_offer_made")
+  statusOfferAccepted    Boolean                 @default(false) @map("status_offer_accepted")
+  driveProcessCompletions DriveProcessCompletion[]
+
+  @@map("applications")
+}
+
+model DriveProcessCompletion {
+  id              Int         @id @default(autoincrement()) @map("completion_id")
+  applicationId   Int         @map("application_id")
+  stepId          String      @default("") @map("step_id") @db.VarChar(100)
+  status          Boolean     @default(false)
+  completionDate  DateTime    @default(now()) @map("completion_date")
+  application     Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@map("drive_process_completion")
+}
+
+model User {
+  id                 Int                @id @default(autoincrement()) @map("user_id")
+  email              String             @unique @db.VarChar(255)
+  markedOut          Boolean            @default(false) @map("marked_out")
+  firstName          String             @default("") @map("first_name") @db.VarChar(100)
+  middleName         String             @default("") @map("middle_name") @db.VarChar(100)
+  lastName           String             @default("") @map("last_name") @db.VarChar(100)
+  phone              String             @default("") @db.VarChar(20)
+  address            String             @default("") @db.Text
+  emailVerified      Boolean            @default(false) @map("email_verified")
+  motherName         String             @default("") @map("mother_name") @db.VarChar(100)
+  gimg               String             @default("") @db.VarChar(255)
+  degree             String             @default("") @db.VarChar(100)
+  branch             String             @default("") @db.VarChar(100)
+  yearOfGraduation   Int                @default(0) @map("year_of_graduation")
+  cgpa               Decimal            @default(0.00) @db.Decimal(3, 2)
+  rollno             String             @default("") @db.VarChar(50)
+  skills             UserSkill[]
+  experiences        Experience[]
+  projects           UserProject[]
+  certifications     UserCertification[]
+  interestedRoles    UserRole[]
+  interestedCompanies UserCompany[]
+  resumes            Resume[]
+  Notification       Notification[]
+  @@map("users")
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  message   String
+  type      String   // "application", "interview", "offer", etc.
+  read      Boolean  @default(false)
+  date      String?  // For display purposes
+  metadata  Json?    // Any additional context, like jobId, applicationId, etc.
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model UserSkill {
+  id          Int    @id @default(autoincrement()) @map("user_skill_id")
+  userId      Int    @map("user_id")
+  skillName   String @map("skill_name") @db.VarChar(100)
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_skills")
+}
+
+model Experience {
+  id          Int       @id @default(autoincrement()) @map("experience_id")
+  userId      Int       @map("user_id")
+  company     String    @default("") @db.VarChar(100)
+  profile     String    @default("") @db.VarChar(100)
+  fromDate    DateTime? @map("from_date") @db.Date
+  toDate      DateTime? @map("to_date") @db.Date
+  description String    @default("") @db.Text
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("experiences")
+}
+
+model UserProject {
+  id          Int    @id @default(autoincrement()) @map("user_project_id")
+  userId      Int    @map("user_id")
+  projectName String @map("project_name") @db.VarChar(200)
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_projects")
+}
+
+model UserCertification {
+  id                Int    @id @default(autoincrement()) @map("user_certification_id")
+  userId            Int    @map("user_id")
+  certificationName String @map("certification_name") @db.VarChar(200)
+  user              User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_certifications")
+}
+
+model UserRole {
+  id        Int    @id @default(autoincrement()) @map("user_role_id")
+  userId    Int    @map("user_id")
+  roleName  String @map("role_name") @db.VarChar(100)
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_roles")
+}
+
+model UserCompany {
+  id          Int    @id @default(autoincrement()) @map("user_company_id")
+  userId      Int    @map("user_id")
+  companyName String @map("company_name") @db.VarChar(100)
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_companies")
+}
+
+model Resume {
+  id          Int       @id @default(autoincrement()) @map("resume_id")
+  userId      Int       @map("user_id")
+  resumeName  String    @default("") @map("resume_name") @db.VarChar(255)
+  fileData    Bytes?    @map("file_data") 
+  uploadDate  DateTime? @map("upload_date")
+  contentType String    @default("") @map("content_type") @db.VarChar(100)
+  resumelink  String    @default("") @db.VarChar(255)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("resumes")
+}
+
+model JobPosting {
+  id                  Int               @id @default(autoincrement()) @map("job_id")
+  companyId           String            @map("company_id") @db.VarChar(100)
+  jobTitle            String            @map("job_title") @db.VarChar(255)
+  imgurl              String?           @db.VarChar(255)
+  description         String?           @db.Text
+  location            String?           @db.VarChar(255)
+  salary              Decimal?          @db.Decimal(15, 2)
+  postedDate          DateTime?         @map("posted_date")
+  applicationDeadline DateTime?         @map("application_deadline")
+  active              Boolean           @default(false)
+  verified            Boolean           @default(false)
+  degree              String?           @db.VarChar(100)
+  minCgpa             Decimal?          @map("min_cgpa") @db.Decimal(3, 2)
+  minExperienceMonths Int?              @map("min_experience_months")
+  branches            JobBranch[]
+  skills              JobSkill[]
+  processSteps        DriveProcessStep[]
+
+  @@map("job_postings")
+}
+
+model JobBranch {
+  id          Int        @id @default(autoincrement()) @map("job_branch_id")
+  jobId       Int        @map("job_id")
+  branchName  String     @map("branch_name") @db.VarChar(100)
+  job         JobPosting @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@map("job_branches")
+}
+
+model JobSkill {
+  id          Int        @id @default(autoincrement()) @map("job_skill_id")
+  jobId       Int        @map("job_id")
+  skillName   String     @map("skill_name") @db.VarChar(100)
+  job         JobPosting @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@map("job_skills")
+}
+
+model DriveProcessStep {
+  id              Int        @id @default(autoincrement()) @map("step_id")
+  jobId           Int        @map("job_id")
+  stepNumber      Int        @map("step_number")
+  stepName        String?    @map("step_name") @db.VarChar(100)
+  description     String?    @db.Text
+  fromDate        DateTime?  @map("from_date")
+  tillDate        DateTime?  @map("till_date")
+  location        String?    @db.VarChar(255)
+  durationMinutes Int?       @map("duration_minutes")
+  job             JobPosting @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@map("drive_process_steps")
+}
+
+model Company {
+  id          Int     @id @default(autoincrement()) @map("company_id")
+  name        String  @default("") @db.VarChar(255)
+  email       String  @db.VarChar(255)
+  description String  @default("") @db.Text
+  password    String  @db.VarChar(255)
+
+  @@map("companies")
+}
+
+model Tpo {
+  id          Int     @id @default(autoincrement()) @map("tpo_id")
+  name        String? @db.VarChar(255)
+  email       String? @db.VarChar(255)
+  phone       BigInt?
+  position    String? @db.VarChar(255)
+  permissions String? @db.Text
+
+  @@map("tpos")
+}
