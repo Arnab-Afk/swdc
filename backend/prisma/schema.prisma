@@ -158,6 +158,8 @@ model JobPosting {
   imgurl              String?           @db.VarChar(255)
   description         String?           @db.Text
   location            String?           @db.VarChar(255)
+  locationType        String?           @map("location_type") @db.VarChar(100)
+  jobType             String?           @map("job_type") @db.VarChar(100)
   salary              Decimal?          @db.Decimal(15, 2)
   postedDate          DateTime?         @map("posted_date")
   applicationDeadline DateTime?         @map("application_deadline")

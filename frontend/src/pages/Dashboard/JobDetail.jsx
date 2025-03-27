@@ -2,101 +2,36 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FaBuilding, FaMapMarkerAlt, FaMoneyBillWave, FaCalendarAlt, 
          FaGraduationCap, FaLaptopCode, FaClock, FaFileAlt } from 'react-icons/fa';
+import { useApi } from '../../contexts/ApiContext';
 
 const JobDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { api, isLoading: apiLoading, userProfile } = useApi();
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedResume, setSelectedResume] = useState('');
   const [userResumes, setUserResumes] = useState([]);
   const [applied, setApplied] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   
   useEffect(() => {
     const fetchJobDetails = async () => {
       try {
-        // In a real app, this would be an API call
-        // const response = await fetch(`/api/jobs/${id}`);
-        // const data = await response.json();
+        setLoading(true);
+        const jobData = await api.jobs.getById(id);
+        setJob(jobData);
         
-        // Simulate API response based on schema
-        setTimeout(() => {
-          setJob({
-            id: parseInt(id),
-            jobTitle: "Software Developer",
-            companyId: "techcorp@example.com",
-            companyName: "Tech Corp",
-            description: "We are looking for a skilled software developer to join our team. The ideal candidate will have experience with React, Node.js, and database technologies.",
-            location: "Remote / New York, NY",
-            salary: "$80,000 - $100,000",
-            postedDate: "Mar 20, 2025",
-            applicationDeadline: "Apr 20, 2025",
-            imgurl: "https://via.placeholder.com/150",
-            active: true,
-            verified: true,
-            degree: "B.Tech / M.Tech",
-            minCgpa: 7.5,
-            minExperienceMonths: 0,
-            branches: [
-              { id: 1, branchName: "Computer Science" },
-              { id: 2, branchName: "Information Technology" }
-            ],
-            skills: [
-              { id: 1, skillName: "React" },
-              { id: 2, skillName: "JavaScript" },
-              { id: 3, skillName: "Node.js" },
-              { id: 4, skillName: "SQL" }
-            ],
-            processSteps: [
-              { 
-                id: 1, 
-                stepNumber: 1, 
-                stepName: "Application Screening", 
-                description: "Review of resumes and applications",
-                fromDate: "Apr 21, 2025", 
-                tillDate: "Apr 25, 2025" 
-              },
-              { 
-                id: 2, 
-                stepNumber: 2, 
-                stepName: "Technical Assessment", 
-                description: "Online coding test and technical questions",
-                fromDate: "Apr 26, 2025", 
-                tillDate: "Apr 28, 2025",
-                location: "Online",
-                durationMinutes: 120
-              },
-              { 
-                id: 3, 
-                stepNumber: 3, 
-                stepName: "Technical Interview", 
-                description: "Video interview with the technical team",
-                fromDate: "May 1, 2025", 
-                tillDate: "May 5, 2025",
-                location: "Virtual - Zoom",
-                durationMinutes: 60
-              },
-              { 
-                id: 4, 
-                stepNumber: 4, 
-                stepName: "HR Interview", 
-                description: "Interview with HR team",
-                fromDate: "May 7, 2025", 
-                tillDate: "May 10, 2025",
-                location: "Virtual - Zoom",
-                durationMinutes: 45
-              }
-            ]
-          });
-          
-          // Simulate user resumes
-          setUserResumes([
-            { id: 1, resumeName: "Technical Resume", uploadDate: "Feb 15, 2025" },
-            { id: 2, resumeName: "Resume with Projects", uploadDate: "Mar 10, 2025" }
-          ]);
-          
-          setLoading(false);
-        }, 800);
+        // If user profile is available, get their resumes
+        if (userProfile && userProfile.resumes) {
+          setUserResumes(userProfile.resumes);
+        } else {
+          // Otherwise fetch profile to get resumes
+          const profileData = await api.user.getProfile();
+          setUserResumes(profileData.resumes || []);
+        }
+        
+        setLoading(false);
       } catch (error) {
         console.error('Error fetching job details:', error);
         setLoading(false);
@@ -104,7 +39,7 @@ const JobDetail = () => {
     };
     
     fetchJobDetails();
-  }, [id]);
+  }, [id, api, userProfile]);
   
   const handleApply = async () => {
     if (!selectedResume) {
@@ -113,22 +48,9 @@ const JobDetail = () => {
     }
     
     try {
-      // In a real app, this would be an API call
-      // const response = await fetch('/api/applications', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     'Authorization': `Bearer ${localStorage.getItem('token')}`
-      //   },
-      //   body: JSON.stringify({
-      //     jobId: id,
-      //     resumeId: selectedResume
-      //   })
-      // });
-      
-      // Simulated success response
-      console.log(`Applied to job ${id} with resume ${selectedResume}`);
+      await api.jobs.apply(id, selectedResume);
       setApplied(true);
+      setShowModal(false);
       
       // Navigate to applications page after successful application
       setTimeout(() => {
@@ -136,6 +58,7 @@ const JobDetail = () => {
       }, 1500);
     } catch (error) {
       console.error('Error applying to job:', error);
+      alert('Failed to apply for this job. Please try again.');
     }
   };
   
@@ -159,7 +82,7 @@ const JobDetail = () => {
           <div className="flex flex-col md:flex-row md:items-center">
             <div className="flex-shrink-0 mb-4 md:mb-0 md:mr-6">
               <img 
-                src={job.imgurl} 
+                src={job.imgurl || 'https://via.placeholder.com/150'} 
                 alt={job.companyName} 
                 className="h-20 w-20 object-cover rounded-md border border-gray-200"
               />
@@ -175,11 +98,11 @@ const JobDetail = () => {
                   <FaMoneyBillWave className="mr-1" /> {job.salary}
                 </div>
                 <div className="flex items-center">
-                  <FaCalendarAlt className="mr-1" /> Posted: {job.postedDate}
+                  <FaCalendarAlt className="mr-1" /> Posted: {new Date(job.postedDate).toLocaleDateString()}
                 </div>
                 <div className="flex items-center">
                   <FaClock className="mr-1 text-amber-500" /> 
-                  <span className="text-amber-500 font-medium">Deadline: {job.applicationDeadline}</span>
+                  <span className="text-amber-500 font-medium">Deadline: {new Date(job.applicationDeadline).toLocaleDateString()}</span>
                 </div>
               </div>
             </div>
@@ -190,7 +113,7 @@ const JobDetail = () => {
                 </div>
               ) : (
                 <button 
-                  onClick={() => document.getElementById('applyModal').classList.remove('hidden')}
+                  onClick={() => setShowModal(true)}
                   className="px-5 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
                 >
                   Apply Now
@@ -245,7 +168,7 @@ const JobDetail = () => {
                             {step.fromDate && step.tillDate && (
                               <span className="flex items-center">
                                 <FaCalendarAlt className="mr-1" /> 
-                                {step.fromDate} to {step.tillDate}
+                                {new Date(step.fromDate).toLocaleDateString()} to {new Date(step.tillDate).toLocaleDateString()}
                               </span>
                             )}
                             {step.location && (
@@ -288,21 +211,21 @@ const JobDetail = () => {
                     </div>
                   </li>
                   <li className="flex">
-                    <FaFileAlt className="mt-1 text-indigo-600 mr-2 flex-shrink-0" />
+                    <svg className="mt-1 h-5 w-5 text-indigo-600 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
                     <div>
-                      <p className="font-medium">Minimum CGPA</p>
+                      <p className="font-medium">Min. CGPA</p>
                       <p className="text-sm text-gray-600">{job.minCgpa}</p>
                     </div>
                   </li>
                   <li className="flex">
-                    <FaBuilding className="mt-1 text-indigo-600 mr-2 flex-shrink-0" />
+                    <svg className="mt-1 h-5 w-5 text-indigo-600 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
                     <div>
                       <p className="font-medium">Experience</p>
-                      <p className="text-sm text-gray-600">
-                        {job.minExperienceMonths > 0 
-                          ? `${job.minExperienceMonths} months` 
-                          : 'No experience required'}
-                      </p>
+                      <p className="text-sm text-gray-600">{job.minExperienceMonths ? `${Math.floor(job.minExperienceMonths / 12)} years ${job.minExperienceMonths % 12} months` : 'No experience required'}</p>
                     </div>
                   </li>
                 </ul>
@@ -313,14 +236,8 @@ const JobDetail = () => {
                 <h2 className="text-lg font-semibold mb-3">About Company</h2>
                 <p className="text-sm text-gray-600">
                   {job.companyName} is a leading technology company specializing in software development
-                  and digital solutions. Visit their website for more information.
+                  and digital solutions.
                 </p>
-                <a 
-                  href="#" 
-                  className="inline-block mt-3 text-sm text-indigo-600 hover:text-indigo-800 hover:underline"
-                >
-                  Visit Company Website
-                </a>
               </div>
             </div>
           </div>
@@ -328,45 +245,51 @@ const JobDetail = () => {
       </div>
       
       {/* Apply Modal */}
-      <div id="applyModal" className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-        <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
-          <h2 className="text-xl font-semibold mb-4">Apply for {job.jobTitle}</h2>
-          
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Select Resume</label>
-            <select 
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              value={selectedResume}
-              onChange={(e) => setSelectedResume(e.target.value)}
-            >
-              <option value="">Select a resume</option>
-              {userResumes.map(resume => (
-                <option key={resume.id} value={resume.id}>
-                  {resume.resumeName} (Uploaded: {resume.uploadDate})
-                </option>
-              ))}
-            </select>
-            <p className="text-sm text-gray-500 mt-1">
-              Choose the resume that best matches this job's requirements
-            </p>
-          </div>
-          
-          <div className="flex justify-end space-x-3 mt-6">
-            <button 
-              onClick={() => document.getElementById('applyModal').classList.add('hidden')}
-              className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button 
-              onClick={handleApply}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-            >
-              Submit Application
-            </button>
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-semibold mb-4">Apply for {job.jobTitle}</h2>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Select Resume</label>
+              {userResumes.length > 0 ? (
+                <select 
+                  value={selectedResume}
+                  onChange={(e) => setSelectedResume(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                  <option value="">Select a resume</option>
+                  {userResumes.map(resume => (
+                    <option key={resume.id} value={resume.id}>
+                      {resume.resumeName}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="p-3 bg-yellow-50 text-yellow-700 rounded-md text-sm">
+                  You haven't uploaded any resumes yet. Please go to your profile and upload a resume first.
+                </div>
+              )}
+            </div>
+            
+            <div className="flex justify-between">
+              <button 
+                onClick={() => setShowModal(false)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-100 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleApply}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                disabled={!selectedResume}
+              >
+                Submit Application
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
